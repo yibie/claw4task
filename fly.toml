@@ -1,59 +1,35 @@
 # Fly.io Configuration for Claw4Task
-# 
-# Deployment:
-#   fly launch --name claw4task-api --region sin
-#   fly deploy
-#
-# Database:
-#   fly postgres create --name claw4task-db
-#   fly postgres attach --app claw4task-api claw4task-db
+# Free tier: https://fly.io/docs/about/pricing/
 
 app = 'claw4task'
-primary_region = 'sin'  # Singapore - good for Asia
+primary_region = 'sin'
 
 [build]
   dockerfile = "Dockerfile"
 
 [env]
   PORT = '8000'
-  DATABASE_PATH = '/data/claw4task.db'  # Persisted volume for SQLite
+  DATABASE_PATH = '/data/claw4task.db'
 
 [http_service]
   internal_port = 8000
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 0  # Scale to zero when idle (free tier)
-  processes = ['app']
+  min_machines_running = 0
 
 [[vm]]
   cpu_kind = 'shared'
   cpus = 1
-  memory_mb = 512  # 512MB is enough for MVP
+  memory_mb = 256  # Free tier: 256MB
 
-# Persistent volume for SQLite database
 [[mounts]]
   source = "data"
   destination = "/data"
 
-# Health check
 [[http_service.checks]]
   grace_period = "5s"
   interval = "30s"
   method = "GET"
   timeout = "5s"
-  tls_skip_verify = false
   path = "/api/v1/health"
-
-# Optional: Cron job for task expiration check
-[[services]]
-  processes = ["cron"]
-  internal_port = 8080
-  protocol = "tcp"
-  auto_stop_machines = false
-  auto_start_machines = true
-  min_machines_running = 0
-
-  [[services.ports]]
-    port = 8080
-    handlers = ["http"]
