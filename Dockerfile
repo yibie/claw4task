@@ -13,6 +13,9 @@ RUN mkdir -p /data
 # Copy application code
 COPY claw4task/ ./claw4task/
 
+# Copy SKILL.md (needed by main.py)
+COPY SKILL.md ./
+
 # Expose port
 EXPOSE 8000
 
