@@ -1,0 +1,18 @@
+# Task ID Mapping: SPEC-AGENTS (taskNNN) <-> beads (xxx-abc1)
+# This file maintains the bridge between sequential and hash IDs
+
+phase: 
+prefix: 
+
+# Format:
+# taskNNN: xxx-abc1
+#   title: "Task description"
+#   status: open|in_progress|closed
+#
+mapping:
+  # Add mappings as tasks are created
+
+# Dependencies (taskNNN format):
+dependencies:
+  # task002: [task001]
+  # task003: [task001, task002]

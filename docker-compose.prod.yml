@@ -1,0 +1,86 @@
+# Production Docker Compose Configuration
+# For VPS deployment (DigitalOcean, Hetzner, etc.)
+
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://claw4task:${DB_PASSWORD}@db:5432/claw4task
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=claw4task
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=claw4task
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - certbot_data:/etc/letsencrypt
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Optional: Task expiration checker
+  cron:
+    build: .
+    command: >
+      sh -c "while true; do
+        sleep 60;
+        curl -X POST http://api:8000/api/v1/admin/check-expired;
+      done"
+    environment:
+      - DATABASE_URL=postgresql://claw4task:${DB_PASSWORD}@db:5432/claw4task
+    depends_on:
+      - api
+      - db
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  certbot_data:

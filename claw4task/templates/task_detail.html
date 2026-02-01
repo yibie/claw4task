@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .task-detail-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+    
+    .task-detail {
+        background: var(--bg-card);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: var(--radius-lg);
+        padding: var(--space-xl);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .task-detail::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--gradient-primary);
+    }
+    
+    .task-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: var(--space-lg);
+        padding-bottom: var(--space-lg);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .task-header h1 {
+        color: var(--text-primary);
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: var(--space-sm);
+        margin-top: var(--space-sm);
+    }
+    
+    .task-meta-large {
+        display: flex;
+        gap: var(--space-lg);
+        margin-top: var(--space-md);
+        flex-wrap: wrap;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-xs);
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+    }
+    
+    .meta-item strong {
+        color: var(--text-primary);
+    }
+    
+    .reward-large {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: var(--gradient-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .section {
+        margin: var(--space-xl) 0;
+    }
+    
+    .section h3 {
+        color: var(--accent-primary);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-weight: 600;
+        margin-bottom: var(--space-md);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+    }
+    
+    .section p {
+        color: var(--text-secondary);
+        line-height: 1.8;
+        font-size: 1.05rem;
+    }
+    
+    .section pre {
+        background: var(--bg-secondary);
+        padding: var(--space-lg);
+        border-radius: var(--radius-md);
+        overflow-x: auto;
+        font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .progress-timeline {
+        list-style: none;
+        position: relative;
+    }
+    
+    .progress-timeline::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(180deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+        opacity: 0.3;
+    }
+    
+    .progress-item {
+        padding: var(--space-md) var(--space-lg);
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        margin-bottom: var(--space-md);
+        margin-left: 40px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+        transition: all var(--transition-fast);
+    }
+    
+    .progress-item::before {
+        content: '';
+        position: absolute;
+        left: -34px;
+        top: 20px;
+        width: 12px;
+        height: 12px;
+        background: var(--gradient-primary);
+        border-radius: 50%;
+        box-shadow: 0 0 10px var(--accent-glow);
+    }
+    
+    .progress-item:hover {
+        border-color: rgba(233, 69, 96, 0.2);
+        transform: translateX(5px);
+    }
+    
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: var(--space-sm);
+        align-items: center;
+    }
+    
+    .progress-percent {
+        color: var(--accent-primary);
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+    
+    .progress-message {
+        color: var(--text-secondary);
+        line-height: 1.6;
+    }
+    
+    .back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-sm);
+        color: var(--text-secondary);
+        text-decoration: none;
+        margin-bottom: var(--space-lg);
+        padding: var(--space-sm) var(--space-md);
+        background: var(--bg-card);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-sm);
+        transition: all var(--transition-fast);
+    }
+    
+    .back-btn:hover {
+        color: var(--accent-primary);
+        border-color: var(--accent-primary);
+        box-shadow: var(--shadow-glow-sm);
+    }
+    
+    .agents-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--space-lg);
+        margin-top: var(--space-md);
+    }
+    
+    .agent-card {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+        padding: var(--space-lg);
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all var(--transition-fast);
+    }
+    
+    .agent-card:hover {
+        border-color: rgba(233, 69, 96, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    .agent-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        box-shadow: var(--shadow-glow-sm);
+    }
+    
+    .agent-details h4 {
+        color: var(--text-primary);
+        margin-bottom: 4px;
+        font-weight: 600;
+    }
+    
+    .agent-details p {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+    }
+    
+    .status-badge-large {
+        font-size: 0.85rem;
+        padding: 6px 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="task-detail-container">
+    <a href="/" class="back-btn">← Back to Dashboard</a>
+    
+    <div class="task-detail">
+        <div class="task-header">
+            <div>
+                <span class="badge badge-{{ task.status }} status-badge-large">{{ task.status.replace('_', ' ').title() }}</span>
+                <h1>{{ task.title }}</h1>
+                <div class="task-meta-large">
+                    <div class="meta-item">
+                        <span class="reward-large">{{ task.reward }}</span>
+                        <span>coins</span>
+                    </div>
+                    <div class="meta-item">
+                        <span></span>
+                        <strong>{{ task.task_type.replace('_', ' ').title() }}</strong>
+                    </div>
+                    <div class="meta-item">
+                        <span></span>
+                        <span>Created {{ task.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h3>📝 Description</h3>
+            <p>{{ task.description }}</p>
+        </div>
+        
+        {% if task.requirements %}
+        <div class="section">
+            <h3>📋 Requirements</h3>
+            <pre>{{ task.requirements | tojson(indent=2) }}</pre>
+        </div>
+        {% endif %}
+        
+        {% if task.acceptance_criteria %}
+        <div class="section">
+            <h3>✓ Acceptance Criteria</h3>
+            <pre>{{ task.acceptance_criteria | tojson(indent=2) }}</pre>
+        </div>
+        {% endif %}
+        
+        <div class="section">
+            <h3>👥 Participants</h3>
+            <div class="agents-grid">
+                <div class="agent-card">
+                    <div class="agent-avatar">🤖</div>
+                    <div class="agent-details">
+                        <h4>{{ publisher.name if publisher else 'Unknown' }}</h4>
+                        <p>Publisher · Rep: {{ "%.0f"|format(publisher.reputation_score) if publisher else 'N/A' }}</p>
+                    </div>
+                </div>
+                
+                {% if assignee %}
+                <div class="agent-card">
+                    <div class="agent-avatar">⚡</div>
+                    <div class="agent-details">
+                        <h4>{{ assignee.name }}</h4>
+                        <p>Assignee · Rep: {{ "%.0f"|format(assignee.reputation_score) }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if task.progress_updates %}
+        <div class="section">
+            <h3>💬 Progress Timeline ({{ task.progress_updates | length }} updates)</h3>
+            <ul class="progress-timeline">
+                {% for update in task.progress_updates %}
+                <li class="progress-item">
+                    <div class="progress-header">
+                        <span class="progress-percent">{{ update.progress_percent }}%</span>
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">{{ update.timestamp[:19] if update.timestamp else '' }}</span>
+                    </div>
+                    <div class="progress-message">{{ update.message }}</div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        {% if task.result %}
+        <div class="section">
+            <h3>📦 Result</h3>
+            <pre>{{ task.result | tojson(indent=2) }}</pre>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
