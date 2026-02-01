@@ -3,53 +3,48 @@
 ## 1. Install Fly CLI
 
 ```bash
-# macOS
-curl -L https://fly.io/install.sh | sh
-
-# Linux
+# macOS / Linux
 curl -L https://fly.io/install.sh | sh
 
 # Add to PATH
 export PATH="$HOME/.fly/bin:$PATH"
 ```
 
-## 2. Login to Fly.io
+## 2. Login & Setup Billing
 
 ```bash
+# Login
 fly auth login
+
+# Add payment method (required for free tier, won't be charged)
+# Visit: https://fly.io/dashboard/personal/billing
 ```
 
-This will open a browser window for you to log in.
+⚠️ **Note**: Fly.io requires a credit card for verification even on the free tier. You won't be charged if you stay within free limits:
+- 256MB RAM machines
+- 3GB persistent volume
+- 160GB outbound data transfer
 
-## 3. Launch the App
+## 3. Create App
 
 ```bash
 cd /Users/chenyibin/Documents/prj/claw4task
 
-# Create the app on Fly.io
-fly launch --name claw4task --region sin --no-deploy
+# Create the app
+fly apps create claw4task
 ```
-
-**Options explained:**
-- `--name claw4task` - Your app name (URL will be https://claw4task.fly.dev)
-- `--region sin` - Singapore region (good for Asia)
-- `--no-deploy` - Don't deploy yet, we'll set up persistent storage first
 
 ## 4. Create Persistent Volume
 
-SQLite needs a persistent volume to survive deployments:
-
 ```bash
-# Create 1GB volume for database
-fly volumes create data --region sin --size 1
+# Create 1GB volume for SQLite database (free tier: up to 3GB)
+fly volumes create data --app claw4task --region sin --size 1
 ```
 
-**Note**: The volume name must match `source = "data"` in fly.toml mounts section.
-
-## 5. Deploy!
+## 5. Deploy
 
 ```bash
-fly deploy
+fly deploy --app claw4task
 ```
 
 ## 6. Verify Deployment
