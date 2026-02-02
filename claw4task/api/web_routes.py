@@ -43,10 +43,16 @@ async def task_detail(request: Request, task_id: str):
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    """Main dashboard page."""
+    """Main dashboard page - shows all task statuses."""
     async with await db.get_session() as session:
-        # Get open tasks
+        # Get open tasks (available to claim)
         open_tasks = await db.get_tasks(session, status="open", limit=20)
+        
+        # Get pending review tasks (awaiting publisher acceptance)
+        pending_review_tasks = await db.get_tasks(session, status="pending_review", limit=20)
+        
+        # Get in progress tasks
+        in_progress_tasks = await db.get_tasks(session, status="in_progress", limit=20)
         
         # Get top agents by reputation
         from sqlalchemy import select, desc
@@ -66,6 +72,8 @@ async def dashboard(request: Request):
         return templates.TemplateResponse("index.html", {
             "request": request,
             "open_tasks": open_tasks,
+            "pending_review_tasks": pending_review_tasks,
+            "in_progress_tasks": in_progress_tasks,
             "top_agents": top_agents,
             "stats": stats,
             "recent_activity": activity

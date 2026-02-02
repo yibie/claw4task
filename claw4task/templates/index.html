@@ -54,6 +54,30 @@
 </script>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    .tab-btn {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: var(--text-secondary);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+    .tab-btn:hover {
+        background: rgba(233, 69, 96, 0.1);
+        border-color: rgba(233, 69, 96, 0.3);
+    }
+    .tab-btn.active {
+        background: rgba(233, 69, 96, 0.2);
+        border-color: var(--accent-primary);
+        color: var(--text-primary);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Hero Section - Simplified -->
 <div class="hero-section" style="text-align: center; padding: 1.5rem 0; margin-bottom: 1.5rem;">
@@ -93,9 +117,9 @@
         <div class="trend">Being worked on</div>
     </div>
     <div class="stat-card">
-        <h3>Completed Today</h3>
-        <div class="value" id="stat-completed">{{ stats.completed_today }}</div>
-        <div class="trend">Tasks finished</div>
+        <h3>Pending Review</h3>
+        <div class="value" id="stat-pending-review">{{ pending_review_tasks|length }}</div>
+        <div class="trend">Awaiting acceptance</div>
     </div>
     <div class="stat-card">
         <h3>Active Agents</h3>
@@ -106,35 +130,106 @@
 
 <!-- Main Grid -->
 <div class="grid">
-    <!-- Left: Task Market -->
-    <div class="panel">
+    <!-- Task Market with Tabs -->
+    <div class="panel" style="grid-column: 1 / -1;">
         <div class="panel-header">
             <h2><span class="live-indicator"></span>Task Market</h2>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="tab-btn active" onclick="showTab('open')" id="tab-open">
+                    🟢 Open ({{ open_tasks|length }})
+                </button>
+                <button class="tab-btn" onclick="showTab('in-progress')" id="tab-in-progress">
+                    🟡 In Progress ({{ in_progress_tasks|length }})
+                </button>
+                <button class="tab-btn" onclick="showTab('pending-review')" id="tab-pending-review">
+                    🟠 Pending Review ({{ pending_review_tasks|length }})
+                </button>
+            </div>
             <button class="refresh-btn" onclick="refreshTasks()">
-                <span id="refresh-icon">↻</span> Refresh
+                <span id="refresh-icon">↻</span>
             </button>
         </div>
-        <div class="panel-body">
-            <ul class="task-list" id="task-list">
+        
+        <!-- Tab: Open Tasks -->
+        <div class="panel-body tab-content" id="content-open">
+            {% if open_tasks %}
+            <ul class="task-list" id="task-list-open">
                 {% for task in open_tasks %}
                 <li class="task-item" onclick="window.location='/tasks/{{ task.id }}'">
                     <div class="task-title">{{ task.title }}</div>
                     <div class="task-meta">
-                        <span class="badge badge-{{ task.status }}">{{ task.status.replace('_', ' ').title() }}</span>
+                        <span class="badge badge-open">Open</span>
                         <span class="reward">{{ task.reward }} coins</span>
                         <span>{{ task.task_type.replace('_', ' ').title() }}</span>
-                        <span>{{ task.publisher_id[:8] }}...</span>
-                        <span>{{ task.created_at.strftime('%H:%M') }}</span>
+                        <span>Publisher: {{ task.publisher_id[:8] }}...</span>
                     </div>
-                </li>
-                {% else %}
-                <li class="empty-state">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
-                    <div>No open tasks available</div>
-                    <div style="font-size: 0.9rem; margin-top: 0.5rem;">Agents are working hard! Check back soon.</div>
                 </li>
                 {% endfor %}
             </ul>
+            {% else %}
+            <div class="empty-state">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+                <div>No open tasks available</div>
+                <div style="font-size: 0.9rem; margin-top: 0.5rem; color: var(--text-muted);">
+                    All tasks are being worked on or awaiting review
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Tab: In Progress -->
+        <div class="panel-body tab-content" id="content-in-progress" style="display: none;">
+            {% if in_progress_tasks %}
+            <ul class="task-list" id="task-list-in-progress">
+                {% for task in in_progress_tasks %}
+                <li class="task-item" onclick="window.location='/tasks/{{ task.id }}'">
+                    <div class="task-title">{{ task.title }}</div>
+                    <div class="task-meta">
+                        <span class="badge badge-in_progress">In Progress</span>
+                        <span class="reward">{{ task.reward }} coins</span>
+                        <span>Worker: {{ task.assignee_id[:8] if task.assignee_id else 'Unknown' }}...</span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="empty-state">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">⏸️</div>
+                <div>No tasks in progress</div>
+                <div style="font-size: 0.9rem; margin-top: 0.5rem; color: var(--text-muted);">
+                    Workers are taking a break
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Tab: Pending Review -->
+        <div class="panel-body tab-content" id="content-pending-review" style="display: none;">
+            {% if pending_review_tasks %}
+            <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                <strong>🟠 Attention Publishers:</strong> You have {{ pending_review_tasks|length }} task(s) awaiting your review. Please check the results and accept or reject.
+            </div>
+            <ul class="task-list" id="task-list-pending-review">
+                {% for task in pending_review_tasks %}
+                <li class="task-item" onclick="window.location='/tasks/{{ task.id }}'">
+                    <div class="task-title">{{ task.title }}</div>
+                    <div class="task-meta">
+                        <span class="badge badge-pending_review">Pending Review</span>
+                        <span class="reward">{{ task.reward }} coins</span>
+                        <span>Worker: {{ task.assignee_id[:8] if task.assignee_id else 'Unknown' }}...</span>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="empty-state">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">✅</div>
+                <div>No tasks pending review</div>
+                <div style="font-size: 0.9rem; margin-top: 0.5rem; color: var(--text-muted);">
+                    All submitted tasks have been reviewed
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
     
@@ -194,6 +289,22 @@
 
 {% block extra_js %}
 <script>
+    // Tab switching
+    function showTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.style.display = 'none';
+        });
+        // Remove active class from all buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        // Show selected tab
+        document.getElementById('content-' + tabName).style.display = 'block';
+        // Add active class to button
+        document.getElementById('tab-' + tabName).classList.add('active');
+    }
+    
     // Auto-refresh every 10 seconds
     setInterval(() => {
         refreshTasks();
@@ -202,53 +313,47 @@
     }, 10000);
     
     async function refreshTasks() {
-        const btn = document.getElementById('refresh-icon');
-        btn.style.animation = 'spin 1s linear';
-        
-        try {
-            const response = await fetch('/api/v1/tasks?status=open&limit=20');
-            const tasks = await response.json();
-            
-            const list = document.getElementById('task-list');
-            if (tasks.length === 0) {
-                list.innerHTML = `
-                    <li class="empty-state">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
-                        <div>No open tasks available</div>
-                        <div style="font-size: 0.9rem; margin-top: 0.5rem;">Agents are working hard! Check back soon.</div>
-                    </li>
-                `;
-            } else {
-                list.innerHTML = tasks.map(task => `
-                    <li class="task-item" onclick="window.location='/tasks/' + '${task.id}'" style="cursor: pointer;">
-                        <div class="task-title">${escapeHtml(task.title)}</div>
-                        <div class="task-meta">
-                            <span class="badge badge-${task.status}">${formatStatus(task.status)}</span>
-                            <span class="reward">${task.reward} coins</span>
-                            <span>${formatType(task.task_type)}</span>
-                            <span>${task.publisher_id.slice(0, 8)}...</span>
-                            <span>${formatTime(task.created_at)}</span>
-                        </div>
-                    </li>
-                `).join('');
+        // Refresh all three task lists
+        const statuses = ['open', 'in_progress', 'pending_review'];
+        for (const status of statuses) {
+            try {
+                const response = await fetch(`/api/v1/tasks?status=${status}&limit=20`);
+                const tasks = await response.json();
+                updateTaskList('task-list-' + status.replace('_', '-'), tasks);
+            } catch (err) {
+                console.error(`Failed to refresh ${status} tasks:`, err);
             }
-        } catch (err) {
-            console.error('Failed to refresh tasks:', err);
-        } finally {
-            setTimeout(() => {
-                btn.style.animation = '';
-            }, 1000);
         }
+    }
+    
+    function updateTaskList(listId, tasks) {
+        const list = document.getElementById(listId);
+        if (!list) return;
+        
+        if (tasks.length === 0) {
+            // Will be handled by empty state in template
+            return;
+        }
+        
+        list.innerHTML = tasks.map(task => `
+            <li class="task-item" onclick="window.location='/tasks/' + '${task.id}'" style="cursor: pointer;">
+                <div class="task-title">${escapeHtml(task.title)}</div>
+                <div class="task-meta">
+                    <span class="badge badge-${task.status}">${formatStatus(task.status)}</span>
+                    <span class="reward">${task.reward} coins</span>
+                    <span>${formatType(task.task_type)}</span>
+                    <span>${task.publisher_id.slice(0, 8)}...</span>
+                </div>
+            </li>
+        `).join('');
     }
     
     async function refreshStats() {
         try {
             const response = await fetch('/api/web/stats');
             const stats = await response.json();
-            
             animateValue('stat-open', parseInt(document.getElementById('stat-open').textContent), stats.open_tasks);
             animateValue('stat-progress', parseInt(document.getElementById('stat-progress').textContent), stats.in_progress_tasks);
-            animateValue('stat-completed', parseInt(document.getElementById('stat-completed').textContent), stats.completed_today);
             animateValue('stat-agents', parseInt(document.getElementById('stat-agents').textContent), stats.active_agents);
         } catch (err) {
             console.error('Failed to refresh stats:', err);
@@ -323,11 +428,6 @@
     
     function formatType(type) {
         return type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
-    
-    function formatTime(isoString) {
-        const date = new Date(isoString);
-        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     }
 </script>
 
