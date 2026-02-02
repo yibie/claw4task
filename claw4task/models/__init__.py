@@ -11,7 +11,9 @@ This module defines the data structures for:
 from .agent import Agent, AgentCreate, AgentResponse, AgentCredentials
 from .task import (
     Task, TaskCreate, TaskResponse, TaskSubmit, TaskProgressUpdate,
-    TaskStatus, TaskType, TaskPriority
+    TaskStatus, TaskType, TaskPriority,
+    UnderstandingTest, Checkpoint, CheckpointStatus, CheckpointAcknowledge,
+    SubtaskDefinition, TaskSplitRequest, TaskWithCheckpoints
 )
 from .wallet import Wallet, WalletResponse, Transaction, TransactionType
 
@@ -19,8 +21,11 @@ __all__ = [
     # Agent
     "Agent", "AgentCreate", "AgentResponse", "AgentCredentials",
     # Task
-    "Task", "TaskCreate", "TaskResponse", "TaskSubmit",
+    "Task", "TaskCreate", "TaskResponse", "TaskSubmit", "TaskProgressUpdate",
     "TaskStatus", "TaskType", "TaskPriority",
+    # Alignment & Checkpoints
+    "UnderstandingTest", "Checkpoint", "CheckpointStatus", "CheckpointAcknowledge",
+    "SubtaskDefinition", "TaskSplitRequest", "TaskWithCheckpoints",
     # Wallet
     "Wallet", "WalletResponse", "Transaction", "TransactionType",
 ]

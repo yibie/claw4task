@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from claw4task.models import (
     Agent, AgentCreate, AgentCredentials, AgentResponse,
     Task, TaskCreate, TaskResponse, TaskSubmit, TaskProgressUpdate, TaskStatus,
-    WalletResponse, Transaction
+    WalletResponse, Transaction,
+    UnderstandingTest, CheckpointAcknowledge, SubtaskDefinition
 )
 from claw4task.api.dependencies import get_current_agent
 from claw4task.services.auth import AuthService
@@ -341,6 +342,196 @@ async def get_transactions(
     """Get transaction history."""
     wallet_service = WalletService()
     return await wallet_service.get_transactions(current_agent.id, limit)
+
+
+# ============================================================================
+# Task Alignment & Checkpoint Routes
+# ============================================================================
+
+@router.post("/tasks/{task_id}/understanding")
+async def submit_understanding(
+    task_id: str,
+    understanding: str,
+    proposed_criteria: List[str],
+    current_agent: Agent = Depends(get_current_agent)
+):
+    """Worker submits understanding of task before starting work.
+    
+    This prevents "talking past each other" by forcing explicit 
+    alignment on what needs to be built.
+    """
+    task_service = TaskService()
+    task = await task_service.submit_understanding_test(
+        task_id=task_id,
+        assignee_id=current_agent.id,
+        understanding=understanding,
+        proposed_criteria=proposed_criteria
+    )
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task not found, you're not assignee, or understanding already submitted"
+        )
+    
+    return {
+        "status": "submitted",
+        "message": "Understanding submitted, awaiting publisher confirmation"
+    }
+
+
+@router.post("/tasks/{task_id}/understanding/confirm")
+async def confirm_understanding(
+    task_id: str,
+    confirmation: str,
+    confirmed: bool = True,
+    current_agent: Agent = Depends(get_current_agent)
+):
+    """Publisher confirms or corrects worker's understanding.
+    
+    Upon confirmation, checkpoints are auto-generated based on task complexity.
+    """
+    task_service = TaskService()
+    task = await task_service.confirm_understanding(
+        task_id=task_id,
+        publisher_id=current_agent.id,
+        confirmation=confirmation,
+        confirmed=confirmed
+    )
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task not found, you're not publisher, or no understanding test submitted"
+        )
+    
+    return {
+        "status": "confirmed" if confirmed else "rejected",
+        "checkpoints_generated": len(task.checkpoints) if confirmed else 0,
+        "message": confirmation
+    }
+
+
+@router.post("/tasks/{task_id}/checkpoint/{checkpoint_number}")
+async def reach_checkpoint(
+    task_id: str,
+    checkpoint_number: int,
+    summary: str,
+    current_agent: Agent = Depends(get_current_agent)
+):
+    """Worker reaches a checkpoint and waits for publisher ACK.
+    
+    Worker cannot proceed past a checkpoint until publisher acknowledges.
+    This ensures alignment throughout the task lifecycle.
+    """
+    task_service = TaskService()
+    task = await task_service.reach_checkpoint(
+        task_id=task_id,
+        assignee_id=current_agent.id,
+        checkpoint_number=checkpoint_number,
+        summary=summary
+    )
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task not found, you're not assignee, checkpoint invalid, or understanding not confirmed"
+        )
+    
+    return {
+        "status": "pending_ack",
+        "checkpoint": checkpoint_number,
+        "message": "Checkpoint reached, awaiting publisher acknowledgment"
+    }
+
+
+@router.post("/tasks/{task_id}/checkpoint/{checkpoint_number}/ack")
+async def acknowledge_checkpoint(
+    task_id: str,
+    checkpoint_number: int,
+    response: str,
+    requires_changes: bool = False,
+    changes_description: Optional[str] = None,
+    current_agent: Agent = Depends(get_current_agent)
+):
+    """Publisher acknowledges checkpoint, allowing worker to proceed.
+    
+    If requires_changes=True, worker must address issues and re-reach checkpoint.
+    """
+    task_service = TaskService()
+    task = await task_service.acknowledge_checkpoint(
+        task_id=task_id,
+        publisher_id=current_agent.id,
+        checkpoint_number=checkpoint_number,
+        response=response,
+        requires_changes=requires_changes,
+        changes_description=changes_description
+    )
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task not found, you're not publisher, or checkpoint not found"
+        )
+    
+    return {
+        "status": "rejected" if requires_changes else "acknowledged",
+        "checkpoint": checkpoint_number,
+        "message": response,
+        "requires_changes": requires_changes
+    }
+
+
+@router.get("/tasks/{task_id}/alignment")
+async def get_alignment_status(
+    task_id: str,
+    current_agent: Agent = Depends(get_current_agent)
+):
+    """Get detailed alignment status for a task.
+    
+    Shows understanding test status, checkpoint progress, and alignment risk level.
+    """
+    task_service = TaskService()
+    status = await task_service.get_task_alignment_status(task_id)
+    
+    if not status:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Only publisher and assignee can view alignment status
+    task = await task_service.get_task(task_id)
+    if current_agent.id not in [task.publisher_id, task.assignee_id]:
+        raise HTTPException(status_code=403, detail="Only publisher and assignee can view alignment status")
+    
+    return status
+
+
+@router.post("/tasks/{task_id}/split-request")
+async def request_task_split(
+    task_id: str,
+    reason: str,
+    current_agent: Agent = Depends(get_current_agent)
+):
+    """Worker requests to split a complex task into subtasks.
+    
+    Useful when task complexity is higher than initially estimated.
+    """
+    task_service = TaskService()
+    task = await task_service.request_task_split(
+        task_id=task_id,
+        assignee_id=current_agent.id,
+        reason=reason
+    )
+    
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Task not found, you're not assignee, or task not in progress"
+        )
+    
+    return {
+        "status": "requested",
+        "message": "Split request submitted to publisher for review"
+    }
 
 
 # ============================================================================

@@ -64,6 +64,19 @@ class TaskDB(Base):
     completed_at = Column(DateTime)
     claim_timeout_minutes = Column(Integer, default=60)
     review_timeout_minutes = Column(Integer, default=30)
+    
+    # Checkpoint system for preventing misalignment
+    checkpoints = Column(JSON, default=list)
+    understanding_test = Column(JSON)
+    current_checkpoint = Column(Integer, default=0)
+    
+    # Complexity tracking for auto-splitting
+    complexity_score = Column(Integer, default=1)
+    dialogue_message_count = Column(Integer, default=0)
+    
+    # Task splitting support
+    parent_task_id = Column(String, index=True)
+    subtask_ids = Column(JSON, default=list)
 
 
 class WalletDB(Base):
