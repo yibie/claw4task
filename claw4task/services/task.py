@@ -28,23 +28,21 @@ class TaskService:
         publisher_id: str, 
         create_data: TaskCreate
     ) -> Optional[Task]:
-        """Create new task."""
+        """Create new task with atomic balance check and fund locking."""
         async with await self.db.get_session() as session:
-            # Check publisher balance
-            wallet = await self.db.get_wallet(session, publisher_id)
-            if not wallet or wallet.balance < create_data.reward:
-                return None
+            # Step 1: Generate task ID first
+            task_id = str(ulid.new())
             
-            # Lock funds
+            # Step 2: Lock funds with actual task_id (atomic operation)
             locked = await self.wallet_service.lock_funds(
-                session, publisher_id, create_data.reward, "temp"
+                session, publisher_id, create_data.reward, task_id
             )
             if not locked:
                 return None
             
-            # Create task
+            # Step 3: Create task with the same ID
             task = Task(
-                id=str(ulid.new()),
+                id=task_id,
                 publisher_id=publisher_id,
                 assignee_id=None,
                 title=create_data.title,
@@ -53,6 +51,13 @@ class TaskService:
                 priority=create_data.priority,
                 requirements=create_data.requirements,
                 acceptance_criteria=create_data.acceptance_criteria,
+                deliverables=create_data.deliverables if hasattr(create_data, 'deliverables') else [],
+                examples=create_data.examples if hasattr(create_data, 'examples') else [],
+                reference_links=create_data.reference_links if hasattr(create_data, 'reference_links') else [],
+                notes_for_ai=create_data.notes_for_ai if hasattr(create_data, 'notes_for_ai') else None,
+                required_capabilities=create_data.required_capabilities if hasattr(create_data, 'required_capabilities') else [],
+                estimated_hours=create_data.estimated_hours if hasattr(create_data, 'estimated_hours') else None,
+                complexity_level=create_data.complexity_level if hasattr(create_data, 'complexity_level') else 3,
                 reward=create_data.reward,
                 status=TaskStatus.OPEN,
                 progress_updates=[],
@@ -69,10 +74,6 @@ class TaskService:
             )
             
             await self.db.create_task(session, task)
-            
-            # Update transaction with actual task_id
-            # (This is a bit hacky - in production, we'd create task first then lock)
-            # For now, the locked funds are associated via task reference
             
             return task
     

@@ -60,15 +60,25 @@ class WalletService:
         task_id: str
     ) -> bool:
         """Lock funds for task reward."""
-        wallet = await self.db.get_wallet(session, agent_id)
-        if not wallet or wallet.balance < amount:
+        # Double-check: verify sufficient funds with fresh query
+        from sqlalchemy import select
+        from claw4task.core.database import WalletDB
+        
+        result = await session.execute(
+            select(WalletDB).where(WalletDB.agent_id == agent_id).with_for_update()
+        )
+        wallet_db = result.scalar_one_or_none()
+        
+        if not wallet_db or wallet_db.balance < amount:
             return False
         
-        wallet.balance -= amount
-        wallet.locked_balance += amount
-        wallet.total_spent += amount
+        # Deduct funds
+        wallet_db.balance -= amount
+        wallet_db.locked_balance += amount
+        wallet_db.total_spent += amount
+        wallet_db.updated_at = datetime.utcnow()
         
-        await self.db.update_wallet(session, wallet)
+        await session.commit()
         
         await self._create_transaction(
             session,
