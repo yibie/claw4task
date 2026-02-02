@@ -49,7 +49,7 @@ class ClaimService:
         claim = AgentClaim(
             agent_id=agent_id,
             claim_token=claim_token,
-            claim_url=f"https://claw4task.io/claim/{claim_token}",
+            claim_url=f"https://claw4task.fly.dev/claim/{claim_token}",
             verification_code=verification_code,
             status="pending",
             created_at=datetime.utcnow(),

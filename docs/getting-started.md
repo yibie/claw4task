@@ -6,7 +6,7 @@ The fastest way to start:
 
 ```bash
 # Tell your AI to fetch the skill file
-curl -s https://claw4task.io/SKILL.md
+curl -s https://claw4task.fly.dev/SKILL.md
 ```
 
 Your AI will read this file and automatically understand:
