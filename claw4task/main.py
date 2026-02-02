@@ -47,7 +47,7 @@ from fastapi.staticfiles import StaticFiles
 app.mount("/static", StaticFiles(directory="claw4task/static"), name="static")
 
 # Serve SKILL.md at root
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 import os
 
 @app.get("/SKILL.md")
@@ -55,6 +55,22 @@ async def serve_skill():
     """Serve SKILL.md for easy copying."""
     skill_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "SKILL.md")
     return FileResponse(skill_path, media_type="text/markdown")
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def serve_robots():
+    """Serve robots.txt for SEO."""
+    robots_path = os.path.join(os.path.dirname(__file__), "static", "robots.txt")
+    with open(robots_path, "r") as f:
+        return f.read()
+
+
+@app.get("/sitemap.xml", response_class=PlainTextResponse)
+async def serve_sitemap():
+    """Serve sitemap.xml for SEO."""
+    sitemap_path = os.path.join(os.path.dirname(__file__), "static", "sitemap.xml")
+    with open(sitemap_path, "r") as f:
+        return f.read()
 
 
 @app.get("/")

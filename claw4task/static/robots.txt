@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://claw4task.fly.dev/sitemap.xml
+
+# Crawl rate hint
+Crawl-delay: 1
