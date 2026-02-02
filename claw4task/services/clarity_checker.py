@@ -1,121 +1,121 @@
-"""Task clarity checker - validates and improves task descriptions."""
+"""Simple task clarity checker - validates and requests rewrite if needed."""
 
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass
-
-
-@dataclass
-class ClarityCheckResult:
-    """Result of clarity check."""
-    score: int  # 0-100
-    is_clear: bool
-    issues: List[str]
-    suggestions: List[str]
-    improved_description: Optional[str] = None
+from typing import Dict, List, Optional
 
 
 class TaskClarityChecker:
-    """Checks task clarity and provides feedback or auto-rewrite."""
+    """Simple checker: pass or request rewrite with template."""
     
-    MIN_ACCEPTABLE_SCORE = 60
-    GOOD_SCORE = 80
+    # Minimum requirements
+    MIN_TITLE_LENGTH = 10
+    MIN_DESCRIPTION_LENGTH = 50
     
-    def check_clarity(self, task_data: Dict) -> ClarityCheckResult:
-        """Check task clarity and return result."""
+    # Vague terms to avoid
+    VAGUE_TERMS = ["etc", "something", "somehow", "maybe", "probably", "asap", "soon", "whatever", "stuff"]
+    
+    def check_and_feedback(self, task_data: Dict) -> Dict:
+        """
+        Check task and return either:
+        - {"passed": True} if clear enough
+        - {"passed": False, "feedback": "...", "template": "..."} if needs rewrite
+        """
         issues = []
-        suggestions = []
-        score = 0
         
-        # Check title
         title = task_data.get("title", "")
-        if len(title) < 10:
-            issues.append("Title is too short")
-            suggestions.append("Expand title to clearly describe the deliverable")
-        else:
-            score += 15
-            
-        action_words = ["build", "create", "fix", "optimize", "implement", "write"]
-        if any(word in title.lower() for word in action_words):
-            score += 5
-        
-        # Check description
         description = task_data.get("description", "")
-        if len(description) < 50:
-            issues.append("Description is too brief")
-            suggestions.append("Add more context about what needs to be done")
-        else:
-            score += 20
-            
-        # Check for vague terms
-        vague_terms = ["etc", "something", "somehow", "maybe"]
-        if any(term in description.lower() for term in vague_terms):
-            issues.append("Description contains vague terms")
-            suggestions.append("Replace vague terms with specific details")
-        else:
-            score += 5
         
-        # Check requirements
-        requirements = task_data.get("requirements", {})
-        if not requirements:
-            issues.append("No technical requirements specified")
-            suggestions.append("Add requirements: technology stack, constraints")
-        else:
-            score += 15
+        # Check 1: Title length
+        if len(title) < self.MIN_TITLE_LENGTH:
+            issues.append(f"Title too short ({len(title)} chars, need {self.MIN_TITLE_LENGTH}+)")
         
-        # Check acceptance criteria
-        criteria = task_data.get("acceptance_criteria", {})
-        if not criteria:
-            issues.append("No acceptance criteria defined")
-            suggestions.append("Define what 'done' means")
-        else:
-            score += 15
+        # Check 2: Description length  
+        if len(description) < self.MIN_DESCRIPTION_LENGTH:
+            issues.append(f"Description too short ({len(description)} chars, need {self.MIN_DESCRIPTION_LENGTH}+)")
         
-        # Check examples
-        if task_data.get("examples"):
-            score += 10
-        else:
-            suggestions.append("Consider adding input/output examples")
+        # Check 3: Vague terms
+        found_vague = [term for term in self.VAGUE_TERMS if term in description.lower()]
+        if found_vague:
+            issues.append(f"Avoid vague terms: {', '.join(found_vague)}")
         
-        # Check estimated hours
-        if task_data.get("estimated_hours"):
-            score += 10
-        else:
-            suggestions.append("Add estimated hours")
+        # Check 4: Has some structure (bullet points or sections)
+        has_structure = any(marker in description for marker in ["\n-", "\n*", "1.", "2.", "**", "###"])
+        if not has_structure:
+            issues.append("Use bullet points or sections to organize requirements")
         
-        is_clear = score >= self.MIN_ACCEPTABLE_SCORE
+        # Passed all checks
+        if not issues:
+            return {"passed": True}
         
-        improved = None
-        if not is_clear:
-            improved = self._rewrite_description(task_data, issues)
+        # Needs rewrite - provide feedback and template
+        feedback = self._generate_feedback(issues)
+        template = self._generate_template(task_data)
         
-        return ClarityCheckResult(
-            score=min(score, 100),
-            is_clear=is_clear,
-            issues=issues,
-            suggestions=suggestions,
-            improved_description=improved
-        )
+        return {
+            "passed": False,
+            "issues": issues,
+            "feedback": feedback,
+            "template": template
+        }
     
-    def _rewrite_description(self, task_data: Dict, issues: List[str]) -> str:
-        """Generate improved description."""
-        title = task_data.get("title", "")
-        description = task_data.get("description", "")
+    def _generate_feedback(self, issues: List[str]) -> str:
+        """Generate human-readable feedback."""
+        lines = ["Your task needs some clarification:"]
+        for issue in issues:
+            lines.append(f"  • {issue}")
+        lines.append("")
+        lines.append("Please rewrite following the template below.")
+        return "\n".join(lines)
+    
+    def _generate_template(self, task_data: Dict) -> str:
+        """Generate a template for the publisher to fill in."""
+        title = task_data.get("title", "[Action] + [What] + [Context]")
         
-        parts = [f"**{title}**\n\n"]
-        parts.append(f"**Objective:** {description}\n\n")
+        template = f"""# {title}
+
+## Objective
+[What problem does this solve? Why is it needed? Be specific.]
+
+## Requirements
+- Technology: [e.g., Python, FastAPI, React]
+- Constraints: [e.g., must work offline, max 100ms response]
+- Dependencies: [what it integrates with]
+
+## Acceptance Criteria (Definition of Done)
+- [ ] [Specific deliverable 1: e.g., "API endpoint returns JSON with fields X, Y, Z"]
+- [ ] [Specific deliverable 2: e.g., "All tests pass with >80% coverage"]
+- [ ] [Specific deliverable 3: e.g., "Documentation includes usage examples"]
+
+## Example (Input → Output)
+**Input:** [Provide a concrete example]
+**Expected Output:** [Show what success looks like]
+
+## Notes for Worker
+- Estimated effort: [X] hours
+- Priority: [High/Medium/Low]
+- References: [links to docs, similar implementations, etc.]
+
+---
+**Tip:** The more specific you are, the better results you'll get. Avoid words like "etc", "something", "asap"."""
         
-        if "requirements" in str(issues).lower():
-            parts.append("**Requirements:**\n")
-            parts.append("- Technology stack: [specify]\n")
-            parts.append("- Performance criteria: [specify]\n\n")
-        
-        if "acceptance" in str(issues).lower():
-            parts.append("**Acceptance Criteria:**\n")
-            parts.append("- [ ] [Specific deliverable]\n")
-            parts.append("- [ ] Tests pass\n\n")
-        
-        parts.append("**Notes:**\n")
-        parts.append("- Estimated effort: [X] hours\n")
-        parts.append("- Priority: [High/Medium/Low]")
-        
-        return "".join(parts)
+        return template
+
+
+# Simple validation function for API
+def validate_task_or_feedback(task_data: Dict) -> Optional[Dict]:
+    """
+    Validate task and return feedback if needed.
+    Returns None if task is clear enough, otherwise returns feedback dict.
+    """
+    checker = TaskClarityChecker()
+    result = checker.check_and_feedback(task_data)
+    
+    if result["passed"]:
+        return None
+    
+    return {
+        "error": "Task needs clarification",
+        "feedback": result["feedback"],
+        "issues": result["issues"],
+        "template": result["template"],
+        "action": "Please rewrite your task using the template and try again"
+    }
