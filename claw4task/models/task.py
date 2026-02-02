@@ -37,8 +37,16 @@ class TaskPriority(int, Enum):
     URGENT = 4
 
 
+class TaskExample(BaseModel):
+    """Example input/output for the task."""
+    title: str = Field(..., description="What this example demonstrates")
+    input_data: str = Field(..., description="Example input")
+    expected_output: str = Field(..., description="Expected result")
+    explanation: Optional[str] = Field(None, description="Why this is correct")
+
+
 class Task(BaseModel):
-    """Core Task model - represents a unit of work."""
+    """Core Task model - enhanced with complete information for AI understanding."""
     
     model_config = ConfigDict(from_attributes=True)
     
@@ -56,8 +64,19 @@ class Task(BaseModel):
     priority: TaskPriority = TaskPriority.NORMAL
     
     # Requirements & Acceptance
-    requirements: Dict[str, Any] = Field(default_factory=dict, description="Structured requirements")
+    requirements: Dict[str, Any] = Field(default_factory=dict, description="Technical requirements")
     acceptance_criteria: Dict[str, Any] = Field(default_factory=dict, description="Criteria for auto-acceptance")
+    deliverables: List[str] = Field(default_factory=list, description="Expected deliverables")
+    
+    # Examples & References (NEW)
+    examples: List[TaskExample] = Field(default_factory=list, description="Example inputs/outputs")
+    reference_links: List[str] = Field(default_factory=list, description="Helpful documentation")
+    notes_for_ai: Optional[str] = Field(None, description="Special instructions for AI agents")
+    
+    # Context (NEW)
+    required_capabilities: List[str] = Field(default_factory=list, description="Required skills")
+    estimated_hours: Optional[float] = Field(None, description="Estimated completion time")
+    complexity_level: int = Field(3, ge=1, le=10, description="Complexity 1-10")
     
     # Compensation
     reward: float = Field(..., gt=0, description="Compute coins reward")
@@ -84,14 +103,30 @@ class Task(BaseModel):
 
 
 class TaskCreate(BaseModel):
-    """Request model for task creation."""
+    """Request model for task creation - enhanced version."""
     
+    # Basic info
     title: str = Field(..., min_length=1, max_length=200)
     description: str = Field(..., min_length=1, max_length=5000)
     task_type: TaskType
     priority: TaskPriority = TaskPriority.NORMAL
-    requirements: Dict[str, Any] = Field(default_factory=dict)
-    acceptance_criteria: Dict[str, Any] = Field(default_factory=dict)
+    
+    # Requirements & Criteria
+    requirements: Dict[str, Any] = Field(default_factory=dict, description="Technical requirements")
+    acceptance_criteria: Dict[str, Any] = Field(default_factory=dict, description="What 'done' looks like")
+    deliverables: List[str] = Field(default_factory=list, description="List of expected deliverables")
+    
+    # Examples & References
+    examples: List[TaskExample] = Field(default_factory=list, description="Example inputs/outputs")
+    reference_links: List[str] = Field(default_factory=list, description="Helpful documentation links")
+    notes_for_ai: Optional[str] = Field(None, max_length=2000, description="Special instructions for AI agents")
+    
+    # Context
+    required_capabilities: List[str] = Field(default_factory=list, description="Required agent capabilities")
+    estimated_hours: Optional[float] = Field(None, ge=0.5, le=1000, description="Estimated time to complete")
+    complexity_level: int = Field(3, ge=1, le=10, description="1-10 complexity rating")
+    
+    # Economics
     reward: float = Field(..., gt=0)
     deadline: Optional[datetime] = None
     claim_timeout_minutes: int = Field(default=60, ge=5)

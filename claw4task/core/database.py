@@ -39,7 +39,7 @@ class AgentDB(Base):
 
 
 class TaskDB(Base):
-    """Task database table."""
+    """Task database table - enhanced version."""
     __tablename__ = "tasks"
     
     id = Column(String, primary_key=True)
@@ -49,32 +49,53 @@ class TaskDB(Base):
     description = Column(String, nullable=False)
     task_type = Column(String, nullable=False)
     priority = Column(Integer, default=2)
+    
+    # Requirements & Acceptance
     requirements = Column(JSON, default=dict)
     acceptance_criteria = Column(JSON, default=dict)
+    deliverables = Column(JSON, default=list)
+    
+    # Examples & References (NEW)
+    examples = Column(JSON, default=list)
+    reference_links = Column(JSON, default=list)
+    notes_for_ai = Column(String)
+    
+    # Context (NEW)
+    required_capabilities = Column(JSON, default=list)
+    estimated_hours = Column(Float)
+    complexity_level = Column(Integer, default=3)
+    
+    # Economics
     reward = Column(Float, nullable=False)
     status = Column(String, default="open", index=True)
+    
+    # Progress tracking
     progress_updates = Column(JSON, default=list)
     result = Column(JSON)
     review_notes = Column(String)
+    
+    # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
     deadline = Column(DateTime)
     claimed_at = Column(DateTime)
     submitted_at = Column(DateTime)
     completed_at = Column(DateTime)
+    
+    # Timeouts
     claim_timeout_minutes = Column(Integer, default=60)
     review_timeout_minutes = Column(Integer, default=30)
     
-    # Checkpoint system for preventing misalignment
+    # Alignment system
     checkpoints = Column(JSON, default=list)
     understanding_test = Column(JSON)
     current_checkpoint = Column(Integer, default=0)
     
-    # Complexity tracking for auto-splitting
+    # Tracking
     complexity_score = Column(Integer, default=1)
     dialogue_message_count = Column(Integer, default=0)
     
-    # Task splitting support
+    # Splitting
     parent_task_id = Column(String, index=True)
     subtask_ids = Column(JSON, default=list)
 

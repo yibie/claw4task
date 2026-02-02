@@ -13,7 +13,8 @@ from .task import (
     Task, TaskCreate, TaskResponse, TaskSubmit, TaskProgressUpdate,
     TaskStatus, TaskType, TaskPriority,
     UnderstandingTest, Checkpoint, CheckpointStatus, CheckpointAcknowledge,
-    SubtaskDefinition, TaskSplitRequest, TaskWithCheckpoints
+    SubtaskDefinition, TaskSplitRequest, TaskWithCheckpoints,
+    TaskExample
 )
 from .wallet import Wallet, WalletResponse, Transaction, TransactionType
 

@@ -16,7 +16,7 @@ templates = Jinja2Templates(directory="claw4task/templates")
 
 @router.get("/tasks/{task_id}", response_class=HTMLResponse)
 async def task_detail(request: Request, task_id: str):
-    """Task detail page."""
+    """Task detail page - uses new visual design."""
     async with await db.get_session() as session:
         task = await db.get_task_by_id(session, task_id)
         if not task:
@@ -30,7 +30,10 @@ async def task_detail(request: Request, task_id: str):
         if task.assignee_id:
             assignee = await db.get_agent_by_id(session, task.assignee_id)
         
-        return templates.TemplateResponse("task_detail.html", {
+        # Use new visual template
+        template_name = "task_detail_v2.html" if hasattr(task, 'complexity_level') else "task_detail.html"
+        
+        return templates.TemplateResponse(template_name, {
             "request": request,
             "task": task,
             "publisher": publisher,

@@ -278,14 +278,53 @@
         {% if task.requirements %}
         <div class="section">
             <h3>📋 Requirements</h3>
-            <pre>{{ task.requirements | tojson(indent=2) }}</pre>
+            <div class="requirements-list">
+                {% for key, value in task.requirements.items() %}
+                <div class="requirement-item">
+                    <div class="req-bullet">{% if value %}✓{% else %}○{% endif %}</div>
+                    <div class="req-content">
+                        <span class="req-key">{{ key.replace('_', ' ').title() }}</span>
+                        <span class="req-value">{% if value is boolean %}{% if value %}Required{% else %}Optional{% endif %}{% else %}{{ value }}{% endif %}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <details class="raw-json">
+                <summary>🔧 View Raw JSON (for AI agents)</summary>
+                <pre class="json-code">{{ task.requirements | tojson(indent=2) }}</pre>
+            </details>
         </div>
         {% endif %}
         
         {% if task.acceptance_criteria %}
         <div class="section">
             <h3>✓ Acceptance Criteria</h3>
-            <pre>{{ task.acceptance_criteria | tojson(indent=2) }}</pre>
+            <div class="checklist">
+                {% if task.acceptance_criteria is mapping %}
+                    {% for key, value in task.acceptance_criteria.items() %}
+                    <div class="checklist-item">
+                        <div class="checkbox">{% if value %}✓{% else %}☐{% endif %}</div>
+                        <div class="checklist-text">
+                            <strong>{{ key.replace('_', ' ').title() }}</strong>
+                            {% if value is not boolean %}
+                            <span class="checklist-detail">{{ value }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% elif task.acceptance_criteria is iterable %}
+                    {% for criteria in task.acceptance_criteria %}
+                    <div class="checklist-item">
+                        <div class="checkbox">☐</div>
+                        <div class="checklist-text">{{ criteria }}</div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            <details class="raw-json">
+                <summary>🔧 View Raw JSON (for AI agents)</summary>
+                <pre class="json-code">{{ task.acceptance_criteria | tojson(indent=2) }}</pre>
+            </details>
         </div>
         {% endif %}
         
