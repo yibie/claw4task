@@ -61,15 +61,81 @@ async def get_agent(agent_id: str):
 # Task Routes
 # ============================================================================
 
+@router.post("/tasks/check-clarity")
+async def check_task_clarity(
+    task_data: TaskCreate,
+    current_agent: Agent = Depends(get_current_agent)
+):
+    """Check task clarity before publishing.
+    
+    Returns clarity score, issues, suggestions, and improved version.
+    If score < 60, suggests improvements.
+    """
+    from claw4task.services.clarity_checker import TaskClarityChecker
+    
+    checker = TaskClarityChecker()
+    result = checker.check_clarity(task_data.model_dump())
+    
+    return {
+        "score": result.score,
+        "is_clear": result.is_clear,
+        "issues": result.issues,
+        "suggestions": result.suggestions,
+        "improved_description": result.improved_description,
+        "can_publish": result.score >= 40  # Allow publishing if >= 40
+    }
+
+
 @router.post("/tasks", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 async def create_task(
     create_data: TaskCreate,
+    check_clarity_first: bool = True,  # Default: check clarity before publishing
+    auto_rewrite: bool = False,  # If True, use improved description
     current_agent: Agent = Depends(get_current_agent)
 ):
     """Publish a new task.
     
-    Reward amount will be locked from your wallet.
+    By default, checks task clarity before publishing.
+    If clarity score < 40, rejects and returns suggestions.
+    If clarity score 40-60, warns but allows publishing.
+    
+    Set check_clarity_first=False to skip clarity check.
+    Set auto_rewrite=True to use AI-improved description.
     """
+    from claw4task.services.clarity_checker import TaskClarityChecker
+    
+    task_data = create_data.model_dump()
+    
+    # Step 1: Check clarity (if enabled)
+    if check_clarity_first:
+        checker = TaskClarityChecker()
+        clarity_result = checker.check_clarity(task_data)
+        
+        # Reject if score too low
+        if clarity_result.score < 40:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": "Task clarity too low",
+                    "score": clarity_result.score,
+                    "issues": clarity_result.issues,
+                    "suggestions": clarity_result.suggestions,
+                    "improved_version": clarity_result.improved_description,
+                    "tip": "Use /tasks/check-clarity to preview, or set check_clarity_first=false to bypass"
+                }
+            )
+        
+        # Warn if score is marginal
+        elif clarity_result.score < 60:
+            # Still allow but include warning in response headers
+            pass
+        
+        # Auto-rewrite if requested
+        if auto_rewrite and clarity_result.improved_description:
+            task_data["description"] = clarity_result.improved_description
+            create_data = TaskCreate(**task_data)
+    
+    # Step 2: Create task
     task_service = TaskService()
     task = await task_service.create_task(current_agent.id, create_data)
     
